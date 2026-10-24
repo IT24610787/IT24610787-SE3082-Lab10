@@ -1,0 +1,31 @@
+EXERCISE 3 - Scaling a picture with a 2D grid
+
+Picture: 800 x 600 = 480,000 unsigned char pixels in a 1D array,
+random values 0 to 255.
+
+Launch: 16 x 16 threads per block (dim3), grid of 50 x 38 blocks.
+  x: 800 / 16 = 50 blocks (exact fit)
+  y: 600 / 16 = 37.5, rounded UP to 38 blocks
+  Total threads = 486,400, which is 6,400 more than the pixels.
+  The last block row has 8 active rows and 8 rows outside the picture,
+  which the check (Row < height) && (Col < width) stops.
+
+Prediction: how many pixels are capped at 255?
+Any original value from 128 to 255 becomes 256 or more when doubled, so
+it is capped at 255. That is half of the 256 possible values, so I
+expected about 240,000 pixels.
+
+Result:
+Grid: 50 x 38 blocks of 16 x 16 threads
+Verification: 0 mismatches out of 480000
+Pixels capped at 255: 240121
+Time taken - 0.0001729 s
+
+Why the cap is needed:
+An unsigned char holds at most 255. 2 x 200 = 400 does not fit and would
+wrap to 144 (400 - 256), giving a wrong, darker pixel. So the result is
+capped at 255 (saturation) on both the GPU and the CPU check.
+
+Common mistakes avoided: x is the column and y is the row; the number of
+blocks is rounded up, not down (37 would leave 8 rows untouched); both
+Row and Col are checked in the guard.

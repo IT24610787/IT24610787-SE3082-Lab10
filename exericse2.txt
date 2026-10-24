@@ -1,0 +1,30 @@
+EXERCISE 2 - Catching errors with the CHECK() macro
+
+Normal run (all five TODOs done): output matched Exercise 1 with
+Verification: 0 mismatches out of 512.
+
+Experiment A - too many threads (add<<<N, 2048>>>)
+Output: Error: ex2_check.cu:55, code:1, reason: invalid argument
+CHECK stopped the program. The sheet expects code 9 (invalid
+configuration argument), but my setup reported code 1 (invalid
+argument). The cause is probably the newer CUDA version I am using
+(not confirmed). This tested the row "the kernel launch is wrong",
+caught by CHECK(cudaGetLastError()).
+
+Experiment B - impossible allocation (size (size_t)1 << 50)
+Output: Error: ex2_check.cu:40, code:2, reason: out of memory
+This tested the row "any CUDA call that returns a value"
+(cudaMalloc wrapped in CHECK).
+
+Experiment C - Experiment A on the plain Exercise 1 program (no CHECK)
+Nothing was reported: no error message and the program ran to the end.
+The results were wrong: every sum printed as 0 and the verification
+showed 512 mismatches out of 512.
+Without the verification loop I would not know anything had gone wrong,
+because the program prints no error. The only hints would be wrong
+results and a very short time. This is why CHECK() is needed: a failed
+CUDA call is silent unless the returned error code is checked.
+
+Note: the "kernel fails while running" row of the table is covered by
+wrapping cudaDeviceSynchronize() in CHECK, which reports errors that
+happen while the kernel runs.

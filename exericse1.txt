@@ -1,0 +1,57 @@
+EXERCISE 1 - Timing a GPU program
+
+(a) Timed program output
+Verification: 0 mismatches out of 512
+Time taken - 0.0006201 s
+
+Experiment - removing cudaDeviceSynchronize()
+Times without it: 0.0001340, 0.0001049, 0.0000880, 0.0000811 s
+Verification still showed 0 mismatches out of 512.
+
+Why the time got smaller:
+A kernel launch is asynchronous. The CPU starts the kernel and carries
+on straight away. Without cudaDeviceSynchronize() the clock stops right
+after the launch, so it only measures the launch, not the kernel running
+on the GPU.
+
+Why the answer was still correct:
+The cudaMemcpy that copies the result back to the host waits for the
+kernel to finish before it copies. So the result is right, but the
+measured time is wrong.
+
+(b) Timing the Lab 9 programs (seconds)
+Program | Launch configuration                    | Run 1     | Run 2     | Run 3
+Ex 3    | 512 blocks x 1 thread                   | 0.0000970 | 0.0000908 | 0.0000889
+Ex 4    | 1 block x 512 threads                   | 0.0001109 | 0.0000899 | 0.0000961
+Ex 5    | 10,000,000 elements, 19,532 x 512       | 0.0006120 | 0.0006089 | 0.0006239
+Ex 6    | 100,000,000 elements, 313x625 of 32x16  | 0.0050571 | 0.0051401 | 0.0050359
+
+Prediction 1: Exercise 3 (512 blocks of 1 thread) vs Exercise 4
+(1 block of 512 threads).
+I expected Exercise 4 to be faster, because threads run in groups of 32
+(warps), and a block with a single thread leaves 31 lanes idle. The
+measurements showed no clear difference (averages about 0.000092 s and
+0.000099 s). With only 512 elements the time is mostly launch overhead,
+so the layout does not matter at this size.
+
+Prediction 2: Is Exercise 6 about 10 times Exercise 5?
+Exercise 6 has 10 times the elements. It took about 8.3 times as long
+(0.005078 / 0.000615). Each element needs only one multiply, so the time
+is mostly spent reading and writing memory, which grows about in
+proportion to the data. It is slightly under 10 times, probably because
+the fixed launch cost is a bigger share of the small run. I did not test
+this.
+
+(c) Kernel time vs copy time, 100 million elements
+Run | Kernel only | Whole sequence
+1   | 0.0047400   | 0.4377759
+2   | 0.0047641   | 0.4358680
+3   | 0.0047512   | 0.4381959
+
+The whole sequence is about 92 times larger than the kernel alone, so
+about 99% of the time is spent copying data over the PCIe bus.
+The kernel does only one multiply per element, so the GPU finishes
+almost at once, but all the data must travel to the GPU and back.
+Work is worth sending to a GPU when it does a lot of computation per
+byte copied, or when the data stays on the GPU for many kernels. A
+single cheap operation like this is not worth it.
